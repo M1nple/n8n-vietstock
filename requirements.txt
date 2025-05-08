@@ -1,0 +1,15 @@
+flask==2.3.3
+selenium==4.23.1
+pandas==2.2.2
+numpy==1.26.4
+beautifulsoup4==4.12.3
+requests==2.32.3
+webdriver-manager==4.0.2
+fake-useragent==2.2.0
+tenacity==8.5.0
+psycopg2-binary
+SQLAlchemy
+python-dotenv
+aiohttp==3.8.6
+aiohttp-socks==0.8.1
+aiohttp-retry==2.8.3

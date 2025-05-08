@@ -1,0 +1,39 @@
+services:
+  python-crawler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - D:/TT/n8n-vietstock/crawled_data:/app/vietstock/crawled_data
+    ports:
+      - "5000:5000"
+    networks:
+      - n8n-network
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app:/app/scripts:/app/utils  # Thêm /app vào PYTHONPATH
+    command: python3 /app/scripts/server.py
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=n8n
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_EDITOR_BASE_URL=http://localhost:5678
+      - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - D:/TT/n8n-vietstock/crawled_data:/home/node/.n8n/crawled_data
+      - D:/TT/n8n-vietstock/scripts:/home/node/.n8n/scripts
+    networks:
+      - n8n-network
+
+networks:
+  n8n-network:
+    driver: bridge
+
+volumes:
+  n8n-data:
