@@ -15,7 +15,11 @@ services:
     command: python3 /app/scripts/server.py
 
   n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
+    # image: docker.n8n.io/n8nio/n8n:latest
+
+    build: # thêm dòng này để sử dụng Dockerfile.n8n
+      context: .
+      dockerfile: Dockerfile.n8n
     ports:
       - "5678:5678"
     environment:
@@ -24,10 +28,15 @@ services:
       - N8N_PROTOCOL=http
       - N8N_EDITOR_BASE_URL=http://localhost:5678
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser # Thêm cho Puppeteer
+      - PUPPETEER_CACHE_DIR=/home/node/.cache/puppeteer # Thêm cho Puppeteer
+      - N8N_DEFAULT_PUPPETEER_LAUNCH_OPTIONS={"args":["--no-sandbox","--disable-setuid-sandbox","--disable-dev-shm-usage"],"timeout":60000,"protocolTimeout":60000} # Thêm cho Puppeteer
+
     volumes:
       - n8n-data:/home/node/.n8n
       - D:/TT/n8n-vietstock/crawled_data:/home/node/.n8n/crawled_data
       - D:/TT/n8n-vietstock/scripts:/home/node/.n8n/scripts
+      - n8n-puppeteer-cache:/home/node/.cache/puppeteer  # Thêm volume cho cache Puppeteer
     networks:
       - n8n-network
 
@@ -37,3 +46,12 @@ networks:
 
 volumes:
   n8n-data:
+  n8n-puppeteer-cache:  # Thêm volume để lưu cache Puppeteer
+
+
+
+
+#Thay image bằng build để sử dụng Dockerfile.n8n.
+# Thêm biến môi trường PUPPETEER_EXECUTABLE_PATH và PUPPETEER_CACHE_DIR để đảm bảo Puppeteer hoạt động đúng.
+# Thêm volume n8n-puppeteer-cache để lưu cache của Puppeteer, tránh mất dữ liệu khi container bị xóa. 
+ 
