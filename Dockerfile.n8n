@@ -1,0 +1,33 @@
+FROM docker.n8n.io/n8nio/n8n:latest
+
+USER root
+RUN apk update && apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    nodejs \
+    npm \
+    bash \
+    && rm -rf /var/cache/apk/*
+
+RUN npm install -g n8n-nodes-puppeteer && \
+    chown -R node:node /usr/local/lib/node_modules && \
+    chown -R node:node /usr/local/bin
+
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_CACHE_DIR=/home/node/.cache/puppeteer
+ENV PUPPETEER_ARGS=--no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage
+
+RUN mkdir -p /home/node/.cache/puppeteer && chown -R node:node /home/node/.cache
+
+USER node
+
+# Giải thích:
+# Cài đặt package với root: Chạy npm install -g n8n-nodes-puppeteer với quyền root để tránh lỗi EACCES.
+# Chuyển quyền sở hữu: Sau khi cài đặt, dùng chown để đảm bảo user node có quyền truy cập vào /usr/local/lib/node_modules và /usr/local/bin 
+# (nơi chứa các lệnh toàn cục).
+# Giữ user node: Chuyển về user node ở cuối để đảm bảo n8n chạy với user không có đặc quyền, phù hợp với thiết kế của image gốc.
