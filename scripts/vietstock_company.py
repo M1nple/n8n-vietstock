@@ -4,7 +4,6 @@ sys.path.append('/app')
 import logging
 from utils.config.driver_config import create_driver
 from utils.pipeline.selenium_pipeline import SeleniumPipeline
-from utils.pipeline.selenium_pipeline import merge_csv_files, save_csv_to_postgres
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
@@ -151,7 +150,7 @@ def vietstock_company(USERNAME, PASSWORD, exchange="0"):
             print("Không tìm thấy hoặc đã hết trang!")
             break
 
-    pipeline.save_data(temp=True)
+    pipeline.close()
     driver.quit()
 # --------------------------------------------------------------------
 if __name__ == "__main__":
@@ -195,27 +194,6 @@ if __name__ == "__main__":
     exchanges_company = ["1", "2", "5"]
     with Pool(processes=2) as pool:
         pool.map(partial(craw_company, USERNAME=random_username, PASSWORD=PASSWORD), exchanges_company)
-
-
-#### 👉 Gộp file sau crawl
-    merge_csv_files(
-        pattern="/app/vietstock/crawled_data/vietstock_company_*_tmp.csv",
-        output_file="/app/vietstock/crawled_data/vst_company_final.csv"
-    )
-
-    logging.info("✅ Đã gộp các file *_tmp.csv thành vst_company_final.csv")
-
-
-### save to db ###
-    # db_url = "postgresql+psycopg2://postgres:652003@localhost:5432/vnstock"
-    # db_url = "postgresql+psycopg2://postgres:652003@host.docker.internal:5432/vnstock"
-    # db_url = "postgresql://postgres:652003@localhost:5432/vnstock"
-    db_url = os.getenv('DB_URL') 
-    csv_file = "/app/vietstock/crawled_data/vst_company_final.csv"
-    table_name = "crawler_company"
-
-    # Lưu dữ liệu vào PostgreSQL
-    save_csv_to_postgres(csv_file=csv_file, db_url=db_url, table_name=table_name, if_exists="replace")
 
 
 

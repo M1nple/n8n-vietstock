@@ -2,13 +2,10 @@ import sys, os, time, random, aiohttp, aiohttp_retry, asyncio, pandas as pd, log
 sys.path.append('/app')
 from bs4 import BeautifulSoup
 from aiohttp_socks import ProxyConnector
-from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException
 from utils.config.driver_config import create_driver
-from utils.pipeline.selenium_pipeline import save_csv_to_postgres
-
 from utils.pipeline.selenium_pipeline import SeleniumPipeline
 pipeline = SeleniumPipeline()
 
@@ -178,8 +175,8 @@ def vietstock_news_latest(pages_limit=2):
         articles_data = asyncio.run(fetch_all_article_contents(articles_data, user_agent, proxy, max_concurrent=3))
 
     for item in articles_data:
-        pipeline.process_item(item, source="vst_news_latest_final")
-    pipeline.save_data()
+        pipeline.process_item(item, source="crawler_news_latest")
+    pipeline.close()
 
     print(f"⏳ Hoàn thành trong {time.time() - start_time:.2f} giây")
     logging.info(f"⏳ Hoàn thành trong {time.time() - start_time:.2f} giây")
@@ -187,15 +184,5 @@ def vietstock_news_latest(pages_limit=2):
 
 
 if __name__ == "__main__":
-    pages_limit = 5
-    vietstock_news_latest()
-
-    ### save to db ###
-    db_url = "postgresql://postgres:652003@host.docker.internal:5432/vnstock"
-    csv_file = "/app/vietstock/crawled_data/vst_news_latest_final.csv"
-    table_name = "crawler_news_latest"
-
-    # Lưu dữ liệu vào PostgreSQL
-    save_csv_to_postgres(csv_file=csv_file, db_url=db_url, table_name=table_name, if_exists="append")
-
-    # save_csv_to_postgres(csv_file=csv_file, db_url=db_url, table_name=table_name, if_exists="append") # chỉnh thành append để ghi vào kh bị xóa cái cũ 
+    pages_limit = 2
+    vietstock_news_latest(pages_limit)
