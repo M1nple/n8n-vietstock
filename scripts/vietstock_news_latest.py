@@ -5,6 +5,7 @@ from aiohttp_socks import ProxyConnector
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from playwright.async_api import async_playwright
 from utils.config.driver_config import create_driver
 from utils.pipeline.selenium_pipeline import SeleniumPipeline
 pipeline = SeleniumPipeline()
@@ -19,6 +20,7 @@ logging.basicConfig(
     encoding='utf-8'
 )
 
+"""
 # Hàm lấy nội dung bài viết bất đồng bộ với độ trễ
 async def get_article_content(session, url, user_agent, max_retries=5):
     headers = {
@@ -57,7 +59,8 @@ async def get_article_content(session, url, user_agent, max_retries=5):
                 content = "\n".join(content_parts) if content_parts else "Không tìm thấy nội dung"
 
                 author = article_body.select_one('p.pAuthor a')
-                publish_time = article_body.select_one('p.pPublishTimeSource')
+                # publish_time = article_body.select_one('p.pPublishTimeSource')  # lấy 1 
+                publish_time = article_body.select('p.pPublishTimeSource') # lấy tất cả 
 
                 result = {
                     "content": content,
@@ -76,6 +79,134 @@ async def get_article_content(session, url, user_agent, max_retries=5):
     except Exception as e:
         print(f"❌ Lỗi lấy nội dung từ {url}: {e}")
         logging.info(f"❌ Lỗi lấy nội dung từ {url}: {e}")
+        return None
+
+# Hàm lấy nội dung tất cả bài viết với giới hạn số yêu cầu đồng thời
+async def fetch_all_article_contents(articles_data, user_agent, proxy=None, max_concurrent=3):
+    print("Đang chạy fetch_all_article_contents với max_concurrent =", max_concurrent)
+    logging.info("Đang chạy fetch_all_article_contents với max_concurrent =", max_concurrent)
+    connector = ProxyConnector.from_url(f"http://{proxy}") if proxy else None
+    async with aiohttp.ClientSession(connector=connector) as session:
+        semaphore = asyncio.Semaphore(max_concurrent)
+        
+        async def limited_get_article_content(article):
+            async with semaphore:
+                result = await get_article_content(session, article["url"], user_agent)
+                if result:
+                    article["content"] = result["content"]
+                    article["author"] = result["author"]
+                    article["publish_time"] = result["publish_time"]
+                else:
+                    article["content"] = "Lỗi khi lấy nội dung"
+                    article["author"] = ""
+                    article["publish_time"] = ""
+        
+        tasks = [limited_get_article_content(article) for article in articles_data]
+        await asyncio.gather(*tasks, return_exceptions=True)
+    return articles_data
+        
+"""
+
+#Hàm lấy nội dung bài viết bằng aiohttp (cho vietstock.vn)
+async def get_article_content_with_aiohttp(session, url, user_agent, max_retries=5):
+    headers = {
+        "User-Agent": user_agent,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://vietstock.vn/"
+    }
+    
+    retry_options = aiohttp_retry.ExponentialRetry(attempts=max_retries, exceptions={aiohttp.ClientError})
+    retry_client = aiohttp_retry.RetryClient(client_session=session, retry_options=retry_options)
+
+    try:
+        async with retry_client.get(url, timeout=10, headers=headers) as response:  # SỬA: Giảm timeout từ 15 xuống 10 vì vietstock.vn tải nhanh
+            if response.status == 200:
+                html = await response.text()
+                soup = BeautifulSoup(html, "html.parser")
+                article_body = soup.select_one('div[itemprop="articleBody"][id="vst_detail"]')
+                if not article_body:
+                    print(f"❌ Không tìm thấy nội dung tại {url}")
+                    logging.info(f"❌ Không tìm thấy nội dung tại {url}")
+                    return None
+
+                content_parts = []
+                for element in article_body.find_all(['p', 'div']):
+                    if element.get('class') in [['pTitle'], ['pHead'], ['pBody']]:
+                        text = element.get_text(strip=True)
+                        if text:
+                            content_parts.append(text)
+                    elif element.get('class') == ['pCaption']:
+                        text = element.get_text(strip=True)
+                        if text:
+                            content_parts.append(f"[Chú thích ảnh]: {text}")
+
+                content = "\n".join(content_parts) if content_parts else "Không tìm thấy nội dung"
+                author = article_body.select_one('p.pAuthor a')
+                publish_time = article_body.select_one('p.pPublishTimeSource')
+
+                result = {
+                    "content": content,
+                    "author": author.get_text(strip=True) if author else "",
+                    "publish_time": publish_time.get_text(strip=True).replace('- ', '') if publish_time else None,
+                    "source": "vietstock" if "vietstock.vn" in url else "external"  # SỬA: Thêm trường source để xác định nguồn
+                }
+
+                print(f"✅ Đã lấy nội dung bằng aiohttp: {url} (publish_time: {result['publish_time'] or 'Không có'}, source: {result['source']})")  # SỬA: Thêm source vào log
+                logging.info(f"✅ Đã lấy nội dung bằng aiohttp: {url} (publish_time: {result['publish_time'] or 'Không có'}, source: {result['source']})")  # SỬA: Thêm source vào log
+                return result
+            else:
+                print(f"❌ Lỗi HTTP {response.status} tại {url}")
+                logging.info(f"❌ Lỗi HTTP {response.status} tại {url}")
+                return None
+    except Exception as e:
+        print(f"❌ Lỗi lấy nội dung từ {url} bằng aiohttp: {e}")
+        logging.info(f"❌ Lỗi lấy nội dung từ {url} bằng aiohttp: {e}")
+        return None
+
+# SỬA: Thêm hàm mới để lấy nội dung bằng Playwright (cho nguồn external như fili.vn)
+async def get_article_content_with_playwright(page, url):
+    try:
+        await page.goto(url, timeout=15000)  # SỬA: Tăng timeout cho nguồn bên ngoài
+        await page.wait_for_selector('div[itemprop="articleBody"][id="vst_detail"]', timeout=5000)
+
+        content = await page.content()
+        soup = BeautifulSoup(content, "html.parser")
+        article_body = soup.select_one('div[itemprop="articleBody"][id="vst_detail"]')
+        if not article_body:
+            print(f"❌ Không tìm thấy nội dung tại {url}")
+            logging.info(f"❌ Không tìm thấy nội dung tại {url}")
+            return None
+
+        content_parts = []
+        for element in article_body.find_all(['p', 'div']):
+            if element.get('class') in [['pTitle'], ['pHead'], ['pBody']]:
+                text = element.get_text(strip=True)
+                if text:
+                    content_parts.append(text)
+            elif element.get('class') == ['pCaption']:
+                text = element.get_text(strip=True)
+                if text:
+                    content_parts.append(f"[Chú thích ảnh]: {text}")
+
+        content = "\n".join(content_parts) if content_parts else "Không tìm thấy nội dung"
+        author = article_body.select_one('p.pAuthor a')
+        publish_time = article_body.select_one('p.pPublishTimeSource')
+
+        result = {
+            "content": content,
+            "author": author.get_text(strip=True) if author else "",
+            "publish_time": publish_time.get_text(strip=True).replace('- ', '') if publish_time else "",
+            "source": "external"
+        }
+
+        print(f"✅ Đã lấy nội dung bằng Playwright: {url} (publish_time: {result['publish_time'] or 'Không có'}, source: {result['source']})")
+        logging.info(f"✅ Đã lấy nội dung bằng Playwright: {url} (publish_time: {result['publish_time'] or 'Không có'}, source: {result['source']})")
+        await asyncio.sleep(random.uniform(0.5, 1))
+        return result
+    except Exception as e:
+        print(f"❌ Lỗi lấy nội dung từ {url} bằng Playwright: {e}")
+        logging.info(f"❌ Lỗi lấy nội dung từ {url} bằng Playwright: {e}")
         return None
 
 # Hàm lấy nội dung tất cả bài viết với giới hạn số yêu cầu đồng thời
@@ -185,4 +316,4 @@ def vietstock_news_latest(pages_limit=2):
 
 if __name__ == "__main__":
     pages_limit = 2
-    vietstock_news_latest(pages_limit)
+    vietstock_news_latest()
