@@ -139,7 +139,7 @@ def vietstock_price(USERNAME, PASSWORD, exchange, last_date=None):
             logging.error(f"Không tìm thấy hoặc đã hết trang: {e}")
             break
 
-    pipeline.save_data(temp=True)
+    pipeline.close()
     driver.quit()
     logging.info(f"Hoàn thành thu thập dữ liệu cho sàn {exch[exchange]}!")
 
@@ -186,21 +186,21 @@ if __name__ == "__main__":
         pool.map(partial(crawl_price, USERNAME=random_username, PASSWORD=PASSWORD), exchanges_price)
 
 
-    #### 👉 Gộp file sau crawl
-    merge_csv_files(
-        pattern="/app/vietstock/crawled_data/vietstock_price_*_tmp.csv",
-        output_file="/app/vietstock/crawled_data/vst_price_final.csv"
-    )
-    logging.info("✅ Đã gộp các file *_tmp.csv thành vst_price_final.csv")
+#     #### 👉 Gộp file sau crawl
+#     merge_csv_files(
+#         pattern="/app/vietstock/crawled_data/vietstock_price_*_tmp.csv",
+#         output_file="/app/vietstock/crawled_data/vst_price_final.csv"
+#     )
+#     logging.info("✅ Đã gộp các file *_tmp.csv thành vst_price_final.csv")
 
 
 
-### save to db ###
-    db_url = "postgresql://postgres:652003@host.docker.internal:5432/vnstock"
-    csv_file = "/app/vietstock/crawled_data/vst_price_final.csv"
-    table_name = "crawler_price"
+# ### save to db ###
+#     db_url = "postgresql://postgres:652003@host.docker.internal:5432/vnstock"
+#     csv_file = "/app/vietstock/crawled_data/vst_price_final.csv"
+#     table_name = "crawler_price"
 
-    # Lưu dữ liệu vào PostgreSQL
-    save_csv_to_postgres(csv_file=csv_file, db_url=db_url, table_name=table_name, if_exists="append")
+#     # Lưu dữ liệu vào PostgreSQL
+#     save_csv_to_postgres(csv_file=csv_file, db_url=db_url, table_name=table_name, if_exists="append")
 
-    # save_csv_to_postgres(csv_file=csv_file, db_url=db_url, table_name=table_name, if_exists="append") # chỉnh thành append để ghi vào kh bị xóa cái cũ 
+#     # save_csv_to_postgres(csv_file=csv_file, db_url=db_url, table_name=table_name, if_exists="append") # chỉnh thành append để ghi vào kh bị xóa cái cũ 

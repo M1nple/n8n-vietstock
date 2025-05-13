@@ -8,7 +8,6 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from sqlalchemy import create_engine
 from utils.config.driver_config import create_driver
-from utils.pipeline.selenium_pipeline import save_csv_to_postgres, merge_csv_files
 from scripts.vietstock_news_latest import fetch_all_article_contents
 
 from utils.pipeline.selenium_pipeline import SeleniumPipeline
@@ -44,6 +43,8 @@ def process_news(symbol, news_rows):
                 "url": url,
                 "date": date,
                 "content": "",
+                "author": "",  
+                "publish_time": ""  
             })
         except Exception as e:
             print(f"⚠️ Lỗi khi phân tích dòng tin tức: {e}")
@@ -109,8 +110,8 @@ def vietstock_news_symbol():
             all_news_data = asyncio.run(fetch_all_article_contents(all_news_data, user_agent, proxy, max_concurrent=3))
 
         for item in all_news_data:
-            pipeline.process_item(item, source=f"vst_news_{symbol}")
-        pipeline.save_data(temp=True)
+            pipeline.process_item(item, source=f"crawler_news_stock")
+        pipeline.close()
 
     driver.quit()
     print(f"⏳ Hoàn thành trong {time.time() - start_time:.2f} giây")
@@ -118,20 +119,3 @@ def vietstock_news_symbol():
 
 if __name__ == "__main__":
     vietstock_news_symbol()
-
-
-    ### 👉 Gộp file sau crawl
-    merge_csv_files(
-        pattern="/app/vietstock/crawled_data/vst_news_*_tmp.csv",
-        output_file="/app/vietstock/crawled_data/vst_news_stock_final.csv"
-    )
-
-    logging.info("✅ Đã gộp các file *_tmp.csv thành vst_news_stock_final.csv")
-
-    ### save to db ###
-    db_url = os.getenv("DB_URL")
-    csv_file = "/app/vietstock/crawled_data/vst_news_stock_final.csv"
-    table_name = "crawler_news_stock"
-
-    # Lưu dữ liệu vào PostgreSQL
-    save_csv_to_postgres(csv_file=csv_file, db_url=db_url, table_name=table_name, if_exists="append")
