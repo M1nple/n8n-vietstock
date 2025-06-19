@@ -3,3 +3,4 @@
 .Dockerfile.n8n
 .curl_output.txt
 vietstock
+crawled_data/*.log
