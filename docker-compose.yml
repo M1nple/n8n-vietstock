@@ -31,6 +31,7 @@ services:
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser # Thêm cho Puppeteer
       - PUPPETEER_CACHE_DIR=/home/node/.cache/puppeteer # Thêm cho Puppeteer
       - N8N_DEFAULT_PUPPETEER_LAUNCH_OPTIONS={"args":["--no-sandbox","--disable-setuid-sandbox","--disable-dev-shm-usage"],"timeout":60000,"protocolTimeout":60000} # Thêm cho Puppeteer
+      - WEBHOOK_URL=https://ac93-42-117-78-151.ngrok-free.app 
 
     volumes:
       - n8n-data:/home/node/.n8n

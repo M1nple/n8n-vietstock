@@ -1,123 +1,8 @@
-'''
-from flask import Flask, request, jsonify
-import subprocess
-import os
-
-app = Flask(__name__)
-
-@app.route('/crawl', methods=['POST'])
-def crawl():
-    exchange = request.json.get('exchange', '2')
-    script = 'vietstock_company.py'
-    try:
-        result = subprocess.run(
-            ['python3', f'/app/scripts/{script}', '--exchange', exchange],
-            env={'PYTHONPATH': '/app'},
-            capture_output=True,
-            text=True
-        )
-        return jsonify({
-            'status': 'success',
-            'exchange': exchange,
-            'stdout': result.stdout,
-            'stderr': result.stderr,
-            'code': result.returncode
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'exchange': exchange,
-            'message': str(e)
-        }), 500
-
-@app.route('/merge_csv', methods=['POST'])
-def merge_csv():
-    try:
-        result = subprocess.run(
-            ['python3', '-c', "from utils.pipeline.selenium_pipeline import merge_csv_files; merge_csv_files('/app/vietstock/crawled_data/*_tmp.csv', '/app/vietstock/crawled_data/merged_output.csv')"],
-            env={'PYTHONPATH': '/app'},
-            capture_output=True,
-            text=True
-        )
-        return jsonify({
-            'status': 'success',
-            'stdout': result.stdout,
-            'stderr': result.stderr,
-            'code': result.returncode
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
-'''
-"""
-from flask import Flask, request, jsonify
-import subprocess
-import os
-
-app = Flask(__name__)
-
-@app.route('/crawl', methods=['POST'])
-def crawl():
-    exchange = request.json.get('exchange', '2')
-    script = 'vietstock_company.py'
-    try:
-        result = subprocess.run(
-            ['/usr/local/bin/python3', f'/app/scripts/{script}', '--exchange', exchange],
-            env={'PYTHONPATH': '/app'},
-            capture_output=True,
-            text=True
-        )
-        return jsonify({
-            'status': 'success',
-            'exchange': exchange,
-            'stdout': result.stdout,
-            'stderr': result.stderr,
-            'code': result.returncode
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'exchange': exchange,
-            'message': str(e)
-        }), 500
-
-@app.route('/merge_csv', methods=['POST'])
-def merge_csv():
-    try:
-        result = subprocess.run(
-            ['/usr/local/bin/python3', '-c', "from utils.pipeline.selenium_pipeline import merge_csv_files; merge_csv_files('/app/vietstock/crawled_data/*_tmp.csv', '/app/vietstock/crawled_data/merged_output.csv')"],
-            env={'PYTHONPATH': '/app'},
-            capture_output=True,
-            text=True
-        )
-        return jsonify({
-            'status': 'success',
-            'stdout': result.stdout,
-            'stderr': result.stderr,
-            'code': result.returncode
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
-"""
 import os, sys, glob
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))  # Thêm đường dẫn đến utils
 from flask import Flask, request, jsonify
 import subprocess, threading
 import pandas as pd
-from utils.pipeline.selenium_pipeline import merge_csv_files  # Import hàm merge từ pipeline_selenium.py
 
 app = Flask(__name__)
 
@@ -151,7 +36,7 @@ def crawl():
         })
 """    
 
-
+"""
 @app.route('/merge_csv', methods=['POST'])
 def merge_csv():
     try:
@@ -170,7 +55,7 @@ def merge_csv():
             'stderr': str(e),
             'code': 1
         }), 500
-
+"""
 """
 @app.route('/vietstock_crawl_price', methods=['POST'])
 def vietstock_crawl_price():
@@ -221,24 +106,6 @@ def crawl_price():
         "status": "started",
         "message": "Đã bắt đầu crawl giá cổ phiếu trong background"
     })
-
-"""
-# 👉 Crawl news
-@app.route('/vietstock_crawl_news_latest', methods=['POST'])
-def crawl_news_latest():
-    def run_news_latest_crawl():
-        script_path = os.path.join(os.path.dirname(__file__), "scripts", "vietstock_news_latest.py")
-        if not os.path.exists(script_path):
-            print(f"Script không tồn tại: {script_path}")
-            return
-        subprocess.run(["python", script_path])
-
-    threading.Thread(target=run_news_latest_crawl).start()
-    return jsonify({
-        "status": "started",
-        "message": "Đã bắt đầu crawl tin tức mới trong background"
-    })
-"""
 
 # 👉 Crawl news latest 
 @app.route('/vietstock_crawl_news_latest', methods=['POST'])

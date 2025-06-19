@@ -157,6 +157,6 @@ def create_driver(headless=True, use_proxy=False):
     except WebDriverException as e:
         logging.error(f"Lỗi WebDriver: {e}")
         raise
-
+    logging.info("===================================================================================================================================================")
     logging.info(f"User-Agent dùng: {random_user_agent}")
     return driver, random_user_agent, proxy
