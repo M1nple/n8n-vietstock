@@ -99,7 +99,8 @@ TABLE_MAPPINGS = {
         "drop_columns": ['publish_time'],
         "unique_columns": ['title', 'url'],
         "data_transforms": {
-            'date': lambda x: pd.to_datetime(x,  format= '%d/%m/%Y', errors='coerce').date() if pd.notnull(x) else None,
+            'date': lambda x:  pd.to_datetime(x, errors='coerce').date()
+            if pd.notnull(x) and str(x).strip() else datetime.now().date()
         }
     }
 }
@@ -159,6 +160,7 @@ class SeleniumPipeline:
         if len(self.data[source]) >= self.batch_size:
             self._save_to_db(source)
 
+    """
     def process_crawler_news_stock(self, item):
     # Chuẩn hóa ngày
         try:
@@ -176,7 +178,36 @@ class SeleniumPipeline:
             "author": (item.get("author") or "").strip(),
             "publish_time": (item.get("publish_time") or "").strip()  # Đảm bảo khớp với column_mapping
         }
-    
+    """    
+    def process_crawler_news_stock(self, item):
+        date_str = item.get("date", "").strip()
+        if date_str:
+            try:
+                date_obj = datetime.strptime(date_str, "%d/%m/%Y")
+                date_str = date_obj.strftime("%Y-%m-%d")
+            except:
+                try:
+                    date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                    date_str = date_obj.strftime("%Y-%m-%d")
+                except:
+                    print(f"⚠️ Không thể phân tích ngày {date_str} cho bài viết {item.get('url', '')}, gán ngày hiện tại")
+                    logging.info(f"⚠️ Không thể phân tích ngày {date_str} cho bài viết {item.get('url', '')}, gán ngày hiện tại")
+                    date_str = time.strftime("%Y-%m-%d")
+        else:
+            print(f"⚠️ Trường date trống cho bài viết {item.get('url', '')}, gán ngày hiện tại")
+            logging.info(f"⚠️ Trường date trống cho bài viết {item.get('url', '')}, gán ngày hiện tại")
+            date_str = time.strftime("%Y-%m-%d")
+
+        return {
+            "symbol": item.get("symbol", "").strip(),
+            "date": date_str,  # CHẮC CHẮN KHÔNG NULL
+            "title": item.get("title", "").strip(),
+            "url": item.get("url", "").strip(),
+            "content": (item.get("content") or "").strip(),
+            "author": (item.get("author") or "").strip(),
+            "publish_time": (item.get("publish_time") or "").strip()
+        }
+
     def process_vietstock_news_latest(self, item):
         try:
             date_obj = datetime.strptime(item.get("date", ""), "%d/%m/%Y")
@@ -299,7 +330,7 @@ class SeleniumPipeline:
         # Chuẩn hóa dữ liệu trước khi kiểm tra
         for col in unique_columns:
             if col in df.columns:
-                df[col] = df[col].str.strip().str.lower()  # Loại bỏ khoảng trắng thừa và chuẩn hóa chữ thường
+                df[col] = df[col].astype(str).str.strip()
 
         # Kiểm tra trùng lặp với database
         with self.engine.connect() as conn:
@@ -311,7 +342,7 @@ class SeleniumPipeline:
                 # Chuẩn hóa dữ liệu trong existing_data
                 for col in unique_columns:
                     if col in existing_data.columns:
-                        existing_data[col] = existing_data[col].str.strip().str.lower()
+                        existing_data[col] = existing_data[col].astype(str).str.strip()
 
                 initial_rows = len(df)
                 df = df.merge(
@@ -350,20 +381,58 @@ class SeleniumPipeline:
         while retry_count < MAX_RETRIES:
             try:
                 with self.engine.connect() as conn:
-                    if table_name == "crawler_company" and current_exchange and current_exchange not in self.cleared_exchanges:
-                        conn.execute(text(f"DELETE FROM {table_name} WHERE exchange = :exchange"), {"exchange": current_exchange})
-                        logging.info(f"Đã xóa dữ liệu cũ của sàn {current_exchange} trong bảng {table_name}")
-                        self.cleared_exchanges.add(current_exchange)
+                    # if table_name == "crawler_company" and current_exchange and current_exchange not in self.cleared_exchanges:
+                    #     conn.execute(text(f"DELETE FROM {table_name} WHERE exchange = :exchange"), {"exchange": current_exchange})
+                    #     logging.info(f"Đã xóa dữ liệu cũ của sàn {current_exchange} trong bảng {table_name}")
+                    #     self.cleared_exchanges.add(current_exchange)
+                    if table_name == "crawler_company":
+                        with self.engine.begin() as conn:
+                            for _, row in df.iterrows():
+                                row_dict = row.to_dict()
+                                insert_stmt = text("""
+                                    INSERT INTO crawler_company (
+                                        symbol, exchange, company_name, industry, listed_volume
+                                    ) VALUES (
+                                        :symbol, :exchange, :company_name, :industry, :listed_volume
+                                    )
+                                    ON CONFLICT (symbol, exchange)
+                                    DO UPDATE SET
+                                        company_name = EXCLUDED.company_name,
+                                        industry = EXCLUDED.industry,
+                                        listed_volume = EXCLUDED.listed_volume
+                                """)
+                                conn.execute(insert_stmt, row_dict)
+                        logging.info(f"💾 Đã upsert {len(df)} dòng vào bảng {table_name} theo exchange = {current_exchange}")
+
                     conn.commit()
 
-                    df.to_sql(
-                        table_name,
-                        self.engine,
-                        index=False,
-                        if_exists="append",
-                        method="multi",
-                        chunksize=1000
-                    )
+                    if table_name == "crawler_company":
+                        with self.engine.begin() as conn:
+                            for _, row in df.iterrows():
+                                row_dict = row.to_dict()
+                                insert_stmt = text("""
+                                    INSERT INTO crawler_company (
+                                        symbol, exchange, company_name, industry, listed_volume
+                                    ) VALUES (
+                                        :symbol, :exchange, :company_name, :industry, :listed_volume
+                                    )
+                                    ON CONFLICT (symbol, exchange)
+                                    DO UPDATE SET
+                                        company_name = EXCLUDED.company_name,
+                                        industry = EXCLUDED.industry,
+                                        listed_volume = EXCLUDED.listed_volume
+                                """)
+                                conn.execute(insert_stmt, row_dict)
+                        logging.info(f"💾 Đã upsert {len(df)} dòng vào bảng {table_name} theo exchange = {current_exchange}")
+                    else:
+                        df.to_sql(
+                            table_name,
+                            self.engine,
+                            index=False,
+                            if_exists="append",
+                            method="multi",
+                            chunksize=1000
+                        )
                     logging.info(f"💾 Đã lưu {len(df)} dòng vào bảng {table_name} cho {current_exchange or 'nguồn'}")
                     break
             except Exception as e:

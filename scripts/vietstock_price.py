@@ -6,7 +6,6 @@ from selenium.webdriver.common.by import By
 from collections import Counter
 from utils.config.driver_config import create_driver
 from scripts.vietstock_company import login_vietstock
-from utils.pipeline.selenium_pipeline import merge_csv_files, save_csv_to_postgres
 from dotenv import load_dotenv
 pipeline = SeleniumPipeline()
 load_dotenv()
@@ -29,7 +28,7 @@ def vietstock_price(USERNAME, PASSWORD, exchange, last_date=None):
 
     try:
         driver.get(url)
-        time.sleep(2)  # chờ trang render
+        time.sleep(5)  # chờ trang render
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div#statistic-price table.table tbody tr"))
         )
