@@ -1,0 +1,404 @@
+{
+  "name": "vietstock_crawl",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://python-crawler:5000/vietstock_crawl_price",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        60,
+        -480
+      ],
+      "id": "c1da2c9e-54f9-44af-89cb-5a34f788ea34",
+      "name": "crawl price"
+    },
+    {
+      "parameters": {
+        "batchSize": 2,
+        "options": {}
+      },
+      "id": "ccb4341f-67de-48f0-8a6a-f2c1dddc8b11",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        -380
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "741b6aa8-64ef-4c2a-9b13-647ca2bd9c13",
+      "name": "Schedule Trigger1",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        -380
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:8000/api/jobs-to-run-now/",
+        "options": {}
+      },
+      "id": "9b22fe22-1e6c-4dd2-bd6f-df0521ef95a4",
+      "name": "Get Jobs1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -700,
+        -380
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://python-crawler:5000/crawl_company",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        60,
+        -700
+      ],
+      "id": "c5ed9348-2bd2-4150-921a-3fb5135c10b7",
+      "name": "crawl company"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "909cf651-8ea8-41ba-b718-234abeab6125",
+              "leftValue": "={{ $json.job }}",
+              "rightValue": "company",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -180,
+        -680
+      ],
+      "id": "85dd1783-51d8-47da-bcd5-674b3988e2b8",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a66d7391-f540-4e19-8d06-eeb110df726d",
+              "leftValue": "={{ $json.job }}",
+              "rightValue": "price",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -180,
+        -460
+      ],
+      "id": "ac15d053-254e-441b-a0dd-f3a332f10025",
+      "name": "If1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://python-crawler:5000/vietstock_crawl_news_latest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        60,
+        -300
+      ],
+      "id": "a67150f0-9af7-4f86-9680-000466b13745",
+      "name": "crawl news latest",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a66d7391-f540-4e19-8d06-eeb110df726d",
+              "leftValue": "={{ $json.job }}",
+              "rightValue": "news_latest",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -180,
+        -280
+      ],
+      "id": "4c5a03d7-8a58-4b99-826a-804e9d3e0bdd",
+      "name": "If2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a66d7391-f540-4e19-8d06-eeb110df726d",
+              "leftValue": "={{ $json.job }}",
+              "rightValue": "news_stock",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -180,
+        -60
+      ],
+      "id": "6c439e90-2a6a-41f7-9f48-41378bf9a305",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://python-crawler:5000/vietstock_crawl_news_stock",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        60,
+        -80
+      ],
+      "id": "de6a8811-5fdb-4b97-8d60-e6b41051a057",
+      "name": "crawl news stock"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Get Jobs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Jobs1": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "crawl company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "crawl price",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "crawl news latest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "crawl news stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "babb59de-7647-4f6c-b0f4-8ed0f1fe3d60",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2cdd21cf34093d697f5e2814e19da2ff2c68f709db2fd5c9e917517b30635127"
+  },
+  "id": "YWgOSHDy0fZ0Zo0l",
+  "tags": []
+}
